@@ -1,10 +1,13 @@
 import random
+from itertools import repeat
+
 import torch
 import pdb
 import os
 import time
 import pickle
 import matplotlib.pyplot as plt
+import tqdm
 from torch.multiprocessing import Pool
 from statistics import mean
 from functools import partial
@@ -14,8 +17,9 @@ from models import DenseLoss, LowRankQuadratic, WeightedMSESum, WeightedMSE, Wei
 from BudgetAllocation import BudgetAllocation
 from BipartiteMatching import BipartiteMatching
 from RMAB import RMAB
-from utils import find_saved_problem, starmap_with_kwargs
-NUM_CPUS = os.cpu_count()
+from utils import find_saved_problem, starmap_with_kwargs, apply_args_and_kwargs
+
+NUM_CPUS = os.environ.get("NUM_PAR", 4)
 
 
 def MSE(Yhats, Ys, **kwargs):
@@ -286,6 +290,11 @@ def _learn_loss(
 
     return model, train_loss, test_loss
 
+def i_sample(l):
+    return _sample_points(*l)
+
+def i_learn(l):
+    return apply_args_and_kwargs(*l)
 
 def _get_learned_loss(
     problem,
@@ -328,11 +337,16 @@ def _get_learned_loss(
         for Ys, Ys_aux, partition in datasets:
             # Get new sampled points
             start_time = time.time()
+            data = zip(Ys, Ys_aux)
             if serial == True:
-                sampled_points = [_sample_points(Y, problem, sampling, num_extra_samples, Y_aux, sampling_std) for Y, Y_aux in zip(Ys, Ys_aux)]
+                data = tqdm.tqdm(data, desc=f"({partition} sample)", total=len(data))
+                sampled_points = [_sample_points(Y, problem, sampling, num_extra_samples, Y_aux, sampling_std) for Y, Y_aux in data]
             else:
                 with Pool(NUM_CPUS) as pool:
-                    sampled_points = pool.starmap(_sample_points, [(Y, problem, sampling, num_extra_samples, Y_aux, sampling_std) for Y, Y_aux in zip(Ys, Ys_aux)])
+                    data = [(Y, problem, sampling, num_extra_samples, Y_aux, sampling_std) for Y, Y_aux in data]
+                    data = tqdm.tqdm(pool.imap(i_sample, data), desc=f"({partition} sample)", total=len(data))
+                    sampled_points = [r for r in data]
+
             print(f"({partition}) Time taken to generate {num_extra_samples} samples for {len(Ys)} instances: {time.time() - start_time}")
 
             # Use them to augment existing sampled points
@@ -381,13 +395,25 @@ def _get_learned_loss(
         idxs = random.sample(range(num_existing_samples), num_samples_needed)
         random.seed()
 
+        def starmap_with_kwargs(fn, args_iter, kwargs):
+            args_for_starmap = zip(repeat(fn), args_iter, repeat(kwargs))
+            return args_for_starmap
+
         # Learn a loss
         start_time = time.time()
+
         if serial == True:
-            losses_and_stats = [_learn_loss(problem, (Y_dataset, opt_objective, Yhats[idxs], objectives[idxs]), model_type, **kwargs) for Y_dataset, opt_objective, Yhats, objectives in SL_dataset[partition]]
+            p_data = tqdm.tqdm(SL_dataset[partition], desc="learn loss")
+            losses_and_stats = [_learn_loss(problem, (Y_dataset, opt_objective, Yhats[idxs], objectives[idxs]), model_type, **kwargs) for Y_dataset, opt_objective, Yhats, objectives in p_data]
         else:
             with Pool(NUM_CPUS) as pool:
-                losses_and_stats = starmap_with_kwargs(pool, _learn_loss, [(problem, (Y_dataset, opt_objective.detach().clone(), Yhats[idxs].detach().clone(), objectives[idxs].detach().clone()), deepcopy(model_type)) for Y_dataset, opt_objective, Yhats, objectives in SL_dataset[partition]], kwargs=kwargs)
+                p_data = SL_dataset[partition]
+                losses_and_stats = starmap_with_kwargs(_learn_loss, [(problem, (Y_dataset.detach().clone(), opt_objective.detach().clone(), Yhats[idxs].detach().clone(),objectives[idxs].detach().clone()), deepcopy(model_type)) for Y_dataset, opt_objective, Yhats, objectives in p_data], kwargs=kwargs)
+                losses_and_stats = pool.imap(i_learn, losses_and_stats)
+                losses_and_stats = [r for r in tqdm.tqdm(losses_and_stats, desc=f"({partition} learn loss",  total=len(p_data))]
+                # pool.starmap(apply_args_and_kwargs, args_for_starmap)
+
+
         print(f"({partition}) Time taken to learn loss for {len(Ys)} instances: {time.time() - start_time}")
 
         # Parse and log results
