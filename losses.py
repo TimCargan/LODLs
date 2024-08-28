@@ -336,7 +336,7 @@ def _get_learned_loss(
             start_time = time.time()
             data = zip(Ys, Ys_aux)
             if serial == True:
-                data = tqdm.tqdm(data, desc=f"({partition} sample)", total=len(data))
+                data = tqdm.tqdm(data, desc=f"({partition} sample)", total=len(Ys))
                 sampled_points = [_sample_points(Y, problem, sampling, num_extra_samples, Y_aux, sampling_std) for Y, Y_aux in data]
             else:
                 with Pool(NUM_CPUS) as pool:
