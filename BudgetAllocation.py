@@ -1,9 +1,10 @@
-from PThenO import PThenO
+import numpy as np
 import pickle
 import random
-import numpy as np
-from SubmodularOptimizer import SubmodularOptimizer
 import torch
+
+from PThenO import PThenO
+from SubmodularOptimizer import SubmodularOptimizer
 
 
 class BudgetAllocation(PThenO):
@@ -137,9 +138,12 @@ class BudgetAllocation(PThenO):
         assert Y.shape[-2] == Z.shape[-1]
         assert len(Z.shape) + 1 == len(Y.shape)
 
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        Z = Z.to(device)
+
         # Initialise weights to default value
         if w is None:
-            w = torch.ones(Y.shape[-1]).requires_grad_(False)
+            w = torch.ones(Y.shape[-1]).requires_grad_(False).to(device)
         else:
             assert Y.shape[-1] == w.shape[0]
             assert len(w.shape) == 1
@@ -152,8 +156,9 @@ class BudgetAllocation(PThenO):
 
     def get_decision(self, Y, Z_init=None, **kwargs):
         # If this is a single instance of a decision problem
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         if len(Y.shape) == 2:
-            return self.opt(Y, Z_init=Z_init)
+            return self.opt(Y, Z_init=Z_init).to(device)
 
         # If it's not...
         #   Remember the shape
@@ -162,6 +167,6 @@ class BudgetAllocation(PThenO):
         Y_new = Y.view((-1, Y_shape[-2], Y_shape[-1]))
         Z = torch.cat([self.opt(y, Z_init=Z_init) for y in Y_new], dim=0)
         #   Convert it back to the right shape
-        Z = Z.view((*Y_shape[:-2], -1))
+        Z = Z.view((*Y_shape[:-2], -1)).to(device)
         return Z
 
