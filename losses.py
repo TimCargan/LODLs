@@ -1,23 +1,20 @@
-import random
-from itertools import repeat
-
-import torch
-import pdb
 import os
-import time
 import pickle
-import matplotlib.pyplot as plt
+import random
+import time
+import torch
 import tqdm
-from torch.multiprocessing import Pool
-from statistics import mean
-from functools import partial
 from copy import deepcopy
+from functools import partial
+from itertools import repeat
+from statistics import mean
+from torch.multiprocessing import Pool
 
-from models import DenseLoss, LowRankQuadratic, WeightedMSESum, WeightedMSE, WeightedCE, WeightedMSESum, QuadraticPlusPlus, WeightedMSEPlusPlus
-from BudgetAllocation import BudgetAllocation
 from BipartiteMatching import BipartiteMatching
+from BudgetAllocation import BudgetAllocation
 from RMAB import RMAB
-from utils import find_saved_problem, starmap_with_kwargs, apply_args_and_kwargs
+from models import DenseLoss, LowRankQuadratic, QuadraticPlusPlus, WeightedCE, WeightedMSE, WeightedMSEPlusPlus, WeightedMSESum
+from utils import apply_args_and_kwargs, find_saved_problem
 
 NUM_CPUS = os.environ.get("NUM_PAR", 4)
 
@@ -354,7 +351,9 @@ def _get_learned_loss(
                 SL_dataset[partition][idx] = (Y, opt_objective, Yhats, objectives)
 
         # Save dataset
-        samples_filename_write = f"{problem_filename[:-4]}_{sampling}_{sampling_std}_{time.time()}.pkl"
+        samples_filename_write = f"{problem_filename[:-4]}_{sampling}_{sampling_std}.pkl"
+        print(f"Writing samples to {samples_filename_write}")
+
         with open(samples_filename_write, 'wb') as filehandle:
             pickle.dump((num_extra_samples, SL_dataset), filehandle)
 
@@ -401,8 +400,7 @@ def _get_learned_loss(
 
         # Learn a loss
         start_time = time.time()
-
-        if serial == True:
+        if True:
             p_data = tqdm.tqdm(SL_dataset[partition], desc="learn loss")
             losses_and_stats = [_learn_loss(problem, (Y_dataset, opt_objective, Yhats[idxs], objectives[idxs]), model_type, **kwargs) for Y_dataset, opt_objective, Yhats, objectives in p_data]
         else:
