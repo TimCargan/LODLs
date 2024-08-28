@@ -1,12 +1,24 @@
+import fcntl
+import inspect
 import os
-import pdb
-from typing import Dict
 import pandas as pd
 import pickle
 import torch
-import inspect
 from itertools import repeat
+from typing import Dict
 
+
+def lock(fn):
+    def wrap(*args, **kwargs):
+        with open(".lock", "a") as file:
+            fcntl.flock(file.fileno(), fcntl.LOCK_EX)
+            res = fn(*args, **kwargs)
+            # Release the lock
+            fcntl.flock(file.fileno(), fcntl.LOCK_UN)
+        return res
+    return wrap
+
+@lock
 def init_if_not_saved(
     problem_cls,
     kwargs,
@@ -16,6 +28,8 @@ def init_if_not_saved(
     # Find the filename if a saved version of the problem with the same kwargs exists
     master_filename = os.path.join(folder, f"{problem_cls.__name__}.csv")
     filename, saved_probs = find_saved_problem(master_filename, kwargs)
+    
+    print(f"Problem Saved as: {filename}")
  
     if not load_new and filename is not None:
         # Load the model
@@ -78,7 +92,8 @@ def print_metrics(
         isTrain = (partition=='train') and (prefix != "Final")
 
         # Decision Quality
-        pred = model(Xs).squeeze()
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        pred = model(Xs).squeeze().to(device)
         Zs_pred = problem.get_decision(pred, aux_data=Ys_aux, isTrain=isTrain)
         objectives = problem.get_objective(Ys, Zs_pred, aux_data=Ys_aux)
 
