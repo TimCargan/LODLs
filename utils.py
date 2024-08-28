@@ -33,7 +33,7 @@ def init_if_not_saved(
 
         # Add its details to the master file
         kwargs['filename'] = filename
-        saved_probs = saved_probs.append([kwargs])
+        saved_probs = pd.concat([saved_probs, pd.DataFrame.from_dict([kwargs])])
         with open(master_filename, 'w') as file:
             saved_probs.to_csv(file, index=False)
 
