@@ -1,15 +1,13 @@
-from pdb import main, set_trace
-from PThenO import PThenO
-import pickle
-import networkx as nx
-import random
-import numpy as np
-from SubmodularOptimizer import SubmodularOptimizer
-import torch
-import metis
-import pdb
 import cvxpy as cp
+import networkx as nx
+import numpy as np
+# import metis
+import pdb
+import random
+import torch
 from cvxpylayers.torch import CvxpyLayer
+
+from PThenO import PThenO
 
 
 class BipartiteMatching(PThenO):
