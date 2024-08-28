@@ -1,11 +1,14 @@
+import functools
 import os
 import pickle
 import random
+import sys
 import time
 import torch
 import tqdm
 from copy import deepcopy
 from functools import partial
+from io import StringIO
 from itertools import repeat
 from statistics import mean
 from torch.multiprocessing import Pool
@@ -18,6 +21,30 @@ from utils import apply_args_and_kwargs, find_saved_problem
 
 NUM_CPUS = os.environ.get("NUM_PAR", 4)
 
+
+class Capturing(list):
+    """Helper to capture stdout when running the opt as it gets messy using cvxpy 1.2"""
+    def __enter__(self):
+        self._stdout = sys.stdout
+        sys.stdout = self._stringio = StringIO()
+        return self
+    def __exit__(self, *args):
+        self.extend(self._stringio.getvalue().splitlines())
+        del self._stringio    # free up some memory
+        sys.stdout = self._stdout
+
+
+def capture(fn):
+    """Wrapper for capturing stdout"""
+    @functools.wraps(fn)
+    def _fn(*args, **kwargs):
+        with Capturing() as output:
+            fn_output = fn(*args, **kwargs)
+        if os.environ.get("LOG_OPT_STDOUT", False):
+            print(output)
+        return fn_output
+
+    return _fn
 
 def MSE(Yhats, Ys, **kwargs):
     """
@@ -57,6 +84,8 @@ def MSE_Sum(
     loss_regularised = (1 - alpha) * sum_loss + alpha * MSE(Yhats, Ys)
     return loss_regularised
 
+
+@capture
 def _sample_points(
     Y,  # The set of true labels
     problem,  # The optimisation problem at hand
