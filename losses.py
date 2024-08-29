@@ -19,15 +19,23 @@ from RMAB import RMAB
 from models import DenseLoss, LowRankQuadratic, QuadraticPlusPlus, WeightedCE, WeightedMSE, WeightedMSEPlusPlus, WeightedMSESum
 from utils import apply_args_and_kwargs, find_saved_problem
 
-NUM_CPUS = os.environ.get("NUM_PAR", 4)
+try:
+    NUM_CPUS = int(os.environ.get("NUM_PAR", 4))
+except ValueError:
+    raise EnvironmentError("NUM_PAR must be an integer")
 
 
 class Capturing(list):
-    """Helper to capture stdout when running the opt as it gets messy using cvxpy 1.2"""
+    """
+    Helper to capture stdout when running the opt as it gets messy using cvxpy 1.2
+    This will just capture stdout and save it to a list for later use.
+    Currently, we just eat it or print it if LOG_OPT_STDOUT is set to True
+    """
     def __enter__(self):
         self._stdout = sys.stdout
         sys.stdout = self._stringio = StringIO()
         return self
+
     def __exit__(self, *args):
         self.extend(self._stringio.getvalue().splitlines())
         del self._stringio    # free up some memory
@@ -35,7 +43,7 @@ class Capturing(list):
 
 
 def capture(fn):
-    """Wrapper for capturing stdout"""
+    """Wrapper function for capturing stdout when context manager is a pain"""
     @functools.wraps(fn)
     def _fn(*args, **kwargs):
         with Capturing() as output:
