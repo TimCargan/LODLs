@@ -1,3 +1,4 @@
+import utils
 from PThenO import PThenO
 import quandl
 import datetime as dt
@@ -346,6 +347,7 @@ class PortfolioOpt(PThenO):
     def _get_covar_mat(self, instance_idxs):
         return self.covar_mat.reshape((-1, *self.covar_mat.shape[2:]))[instance_idxs]
 
+    @utils.capture
     def get_decision(self, Y, aux_data, max_instances_per_batch=1500, **kwargs):
         # Get the sqrt of the covariance matrix
         covar_mat = aux_data

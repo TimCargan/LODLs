@@ -26,35 +26,6 @@ except ValueError:
     raise EnvironmentError("NUM_PAR must be an integer")
 
 
-class Capturing(list):
-    """
-    Helper to capture stdout when running the opt as it gets messy using cvxpy 1.2
-    This will just capture stdout and save it to a list for later use.
-    Currently, we just eat it or print it if LOG_OPT_STDOUT is set to True
-    """
-    def __enter__(self):
-        self._stdout = sys.stdout
-        sys.stdout = self._stringio = StringIO()
-        return self
-
-    def __exit__(self, *args):
-        self.extend(self._stringio.getvalue().splitlines())
-        del self._stringio    # free up some memory
-        sys.stdout = self._stdout
-
-
-def capture(fn):
-    """Wrapper function for capturing stdout when context manager is a pain"""
-    @functools.wraps(fn)
-    def _fn(*args, **kwargs):
-        with Capturing() as output:
-            fn_output = fn(*args, **kwargs)
-        if os.environ.get("LOG_OPT_STDOUT", False):
-            print(output)
-        return fn_output
-
-    return _fn
-
 def MSE(Yhats, Ys, **kwargs):
     """
     Calculates the mean squared error between predictions
@@ -94,7 +65,6 @@ def MSE_Sum(
     return loss_regularised
 
 
-@capture
 def _sample_points(
     Y,  # The set of true labels
     problem,  # The optimisation problem at hand
