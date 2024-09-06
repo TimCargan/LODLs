@@ -1,6 +1,6 @@
-from functools import partial
 import os
 import sys
+from functools import partial
 
 # Makes sure hashes are consistent
 hashseed = os.getenv('PYTHONHASHSEED')
@@ -14,8 +14,6 @@ import torch
 torch.set_num_threads(1)
 torch.set_num_interop_threads(1)
 import random
-import pdb
-import matplotlib.pyplot as plt
 from copy import deepcopy
 
 from BudgetAllocation import BudgetAllocation
@@ -24,7 +22,7 @@ from PortfolioOpt import PortfolioOpt
 from RMAB import RMAB
 from CubicTopK import CubicTopK
 from models import model_dict
-from losses import MSE, get_loss_fn
+from losses import get_loss_fn
 from utils import print_metrics, init_if_not_saved, move_to_gpu
 
 
@@ -213,7 +211,7 @@ if __name__ == '__main__':
     print("\nBenchmarking Model...")
     # Print final metrics
     datasets = [(X_train, Y_train, Y_train_aux, 'train'), (X_val, Y_val, Y_val_aux, 'val'), (X_test, Y_test, Y_test_aux, 'test')]
-    print_metrics(datasets, model, problem, args.loss, loss_fn, "Final")
+    final_res = print_metrics(datasets, model, problem, args.loss, loss_fn, "Final")
 
     #   Document the value of a random guess
     objs_rand = []
@@ -221,13 +219,19 @@ if __name__ == '__main__':
         Z_test_rand = problem.get_decision(torch.rand_like(Y_test), aux_data=Y_test_aux, isTrain=False)
         objectives = problem.get_objective(Y_test, Z_test_rand, aux_data=Y_test_aux)
         objs_rand.append(objectives)
-    print(f"\nRandom Decision Quality: {torch.stack(objs_rand).mean().item()}")
+    rnd_res = torch.stack(objs_rand).mean().item()
+    print(f"\nRandom Decision Quality: {rnd_res}")
 
     #   Document the optimal value
     Z_test_opt = problem.get_decision(Y_test, aux_data=Y_test_aux, isTrain=False)
     objectives = problem.get_objective(Y_test, Z_test_opt, aux_data=Y_test_aux)
-    print(f"Optimal Decision Quality: {objectives.mean().item()}")
+    opt_res = objectives.mean().item()
+    print(f"Optimal Decision Quality: {opt_res}")
     print()
+
+    # TODO: write to a single file or somewhere so its easy to get results
+    print("opt, rand, val")
+    print(f"{opt_res:.6f}, {rnd_res:.6f}, {final_res['val']['objective']:.6f}")
 
     # pdb.set_trace()
 
