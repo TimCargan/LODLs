@@ -231,7 +231,7 @@ if __name__ == '__main__':
 
     # TODO: write to a single file or somewhere so its easy to get results
     print("opt, rand, val")
-    print(f"{opt_res:.6f}, {rnd_res:.6f}, {final_res['val']['objective']:.6f}")
+    print(f"{opt_res:.6f}, {rnd_res:.6f}, {final_res['test']['objective']:.6f}")
 
     # pdb.set_trace()
 
