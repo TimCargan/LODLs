@@ -1,1 +1,6 @@
 .DS_Store
+*.out
+*.pkl
+.lock
+/data
+**/__pycache__
