@@ -21,7 +21,7 @@ from utils import apply_args_and_kwargs, find_saved_problem
 
 try:
     NUM_CPUS = int(os.environ.get("NUM_PAR", 4))
-    print(f"Found env var: {NUM_CPUS=}")
+    print(f"Found env var: NUM_CPUS: {NUM_CPUS}")
 except ValueError:
     raise EnvironmentError("NUM_PAR must be an integer")
 
