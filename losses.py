@@ -346,12 +346,13 @@ def _get_learned_loss(
             if serial == True:
                 data = tqdm.tqdm(data, desc=f"({partition} sample)", total=len(Ys))
                 sampled_points = [_sample_points(Y, problem, sampling, num_extra_samples, Y_aux, sampling_std) for Y, Y_aux in data]
+                data.close()
             else:
                 with Pool(NUM_CPUS) as pool:
                     data = [(Y, problem, sampling, num_extra_samples, Y_aux, sampling_std) for Y, Y_aux in data]
                     data = tqdm.tqdm(pool.imap(i_sample, data), desc=f"({partition} sample)", total=len(data))
                     sampled_points = [r for r in data]
-
+                    data.close()
             print(f"({partition}) Time taken to generate {num_extra_samples} samples for {len(Ys)} instances: {time.time() - start_time}")
 
             # Use them to augment existing sampled points
@@ -411,6 +412,7 @@ def _get_learned_loss(
         if True:
             p_data = tqdm.tqdm(SL_dataset[partition], desc="learn loss")
             losses_and_stats = [_learn_loss(problem, (Y_dataset, opt_objective, Yhats[idxs], objectives[idxs]), model_type, **kwargs) for Y_dataset, opt_objective, Yhats, objectives in p_data]
+            p_data.close()
         else:
             with Pool(NUM_CPUS) as pool:
                 p_data = SL_dataset[partition]
